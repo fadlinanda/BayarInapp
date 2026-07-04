@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>BayarIn - Bayar & TopUp</title>
+    
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <!-- QRCode.js untuk QRIS -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    
+    <style>
+        /* ====== CUSTOM STYLES ====== */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            background: #f0f4f8;
+            font-family: 'Segoe UI', 'Roboto', system-ui, -apple-system, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 0;
+            margin: 0;
+        }
+        
+        /* ====== TOAST NOTIFICATION ====== */
+        .toast-container {
+            z-index: 9999;
+            position: fixed;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 380px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        }
+        
+        .toast-item {
+            padding: 12px 16px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 500;
+            font-size: 14px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            animation: slideDown 0.3s ease;
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .toast-item.success { background: #059669; }
+        .toast-item.error { background: #dc2626; }
+        .toast-item.info { background: #3b82f6; }
+        .toast-item.warning { background: #d97706; }
+        
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* ====== LOADING SPINNER ====== */
+        .spinner {
+            border: 4px solid rgba(13, 148, 136, 0.1);
+            border-radius: 50%;
+            border-top: 4px solid #0d9488;
+            width: 48px;
+            height: 48px;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* ====== MODAL OVERLAY ====== */
+        .modal-overlay {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+        }
+        
+        /* ====== TAB NAVIGATION ====== */
+        .tab-btn {
+            transition: all 0.2s ease;
+            position: relative;
+            white-space: nowrap;
+        }
+        
+        .tab-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .tab-active {
+            border-bottom: 3px solid #0d9488;
+            color: #0d9488;
+            font-weight: 600;
+        }
+        
+        /* ====== PRINT STYLE ====== */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #print-area, #print-area * {
+                visibility: visible;
+            }
+            #print-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                padding: 20px;
+                background: white;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .modal-overlay {
+                background: white !important;
+                backdrop-filter: none !important;
+            }
+            #modalBayar {
+                position: absolute !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                background: white !important;
+            }
+        }
+        
+        /* ====== MOBILE FIRST - EVEN NIM ====== */
+        #app {
+            max-width: 480px;
+            width: 100%;
+            min-height: 100vh;
+            background: white;
+            box-shadow: 0 0 40px rgba(0,0,0,0.08);
+            position: relative;
+            padding-bottom: 80px;
+        }
+        
+        /* ====== CARD HOVER EFFECT ====== */
+        .card-hover {
+            transition: all 0.15s ease;
+            cursor: pointer;
+        }
+        
+        .card-hover:active {
+            transform: scale(0.96);
+            opacity: 0.8;
+        }
+        
+        /* ====== SCROLLBAR STYLING ====== */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #0d9488;
+            border-radius: 10px;
+        }
+        
+        /* ====== UTILITY ====== */
+        .transition-all {
+            transition: all 0.2s ease;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #0d9488;
+            outline: 2px solid #0d9488;
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+        }
+        
+        .btn-primary {
+            background: #0d9488;
+            color: white;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            border: none;
+            width: 100%;
+            cursor: pointer;
+        }
+        
+        .btn-primary:active {
+            transform: scale(0.97);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    
+    <!-- ====== TOAST CONTAINER ====== -->
+    <div id="toastContainer" class="toast-container"></div>
+    
+    <!-- ====== APP WRAPPER ====== -->
+    <div id="app">
+        
+        <!-- ====== HEADER ====== -->
+        <header class="bg-teal-600 text-white p-4 sticky top-0 z-30 shadow-lg">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="bg-white/20 p-2 rounded-xl">
+                        <i class="fas fa-wallet text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold tracking-tight">BayarIn</h1>
+                        <p class="text-xs text-teal-100 opacity-80">Bayar Tagihan & TopUp</p>
+                    </div>
+                </div>
+                <div class="bg-teal-700/80 backdrop-blur-sm px-4 py-2 rounded-full flex items-center gap-2 border border-teal-500/30">
+                    <i class="fas fa-coins text-yellow-300"></i>
+                    <span id="saldoDisplay" class="font-semibold text-sm">Rp 1.250.000</span>
+                </div>
+            </div>
+        </header>
+        
+        <!-- ====== NAVIGASI TAB (SPA) ====== -->
+        <nav class="bg-white border-b border-gray-200 overflow-x-auto sticky top-[72px] z-20 shadow-sm no-print">
+            <div class="flex min-w-full">
+                <button data-tab="dashboard" class="tab-btn tab-active flex-1 py-3 px-2 text-center text-xs font-medium border-b-2 border-transparent hover:text-teal-600 transition-all">
+                    <i class="fas fa-home block text-lg mb-0.5"></i>
+                    <span>Beranda</span>
+                </button>
+                <button data-tab="tagihan" class="tab-btn flex-1 py-3 px-2 text-center text-xs font-medium border-b-2 border-transparent hover:text-teal-600 transition-all">
+                    <i class="fas fa-file-invoice block text-lg mb-0.5"></i>
+                    <span>Tagihan</span>
+                </button>
+                <button data-tab="spp" class="tab-btn flex-1 py-3 px-2 text-center text-xs font-medium border-b-2 border-transparent hover:text-teal-600 transition-all">
+                    <i class="fas fa-graduation-cap block text-lg mb-0.5"></i>
+                    <span>SPP</span>
+                </button>
+                <button data-tab="pulsa" class="tab-btn flex-1 py-3 px-2 text-center text-xs font-medium border-b-2 border-transparent hover:text-teal-600 transition-all">
+                    <i class="fas fa-sim-card block text-lg mb-0.5"></i>
+                    <span>Pulsa</span>
+                </button>
+                <button data-tab="riwayat" class="tab-btn flex-1 py-3 px-2 text-center text-xs font-medium border-b-2 border-transparent hover:text-teal-600 transition-all">
+                    <i class="fas fa-clock-rotate-left block text-lg mb-0.5"></i>
+                    <span>Riwayat</span>
+                </button>
+            </div>
+        </nav>
+        
+        <!-- ====== MAIN CONTENT ====== -->
+        <main class="p-4 pb-24">
+            
+            <!-- ====== SECTION: DASHBOARD ====== -->
+            <section id="section-dashboard" class="tab-content">
+                <!-- Welcome Card -->
+                <div class="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-2xl p-5 mb-5 shadow-sm border border-teal-100">
+                    <div class="flex items-start gap-3">
+                        <div class="bg-teal-100 p-3 rounded-xl">
+                            <i class="fas fa-hand-holding-heart text-teal-600 text-2xl"></i>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-gray-800">Halo, Pengguna!</p>
+                            <p class="text-sm text-gray-600 mt-0.5">BayarIn siap membantu pembayaran Anda</p>
+                            <div class="mt-2 flex items-center gap-2 text-xs">
+                                <span class="bg-teal-200 text-teal-800 px-2 py-0.5 rounded-full">💳 3 Metode</span>
+                                <span class="bg-blue-200 text-blue-800 px-2 py-0.5 rounded-full">🛡️ Aman</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Quick Access -->
+                <p class="text-sm font-medium text-gray-600 mb-3">⚡ Akses Cepat</p>
+                <div class="grid grid-cols-3 gap-3">
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center card-hover" onclick="navigateTo('tagihan')">
+                        <div class="bg-yellow-100 w-12 h-12 rounded-xl flex items-center justify-center mx-auto">
+                            <i class="fas fa-bolt text-2xl text-yellow-600"></i>
+                        </div>
+                        <p class="text-xs font-medium mt-2 text-gray-700">Listrik</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center card-hover" onclick="navigateTo('tagihan')">
+                        <div class="bg-blue-100 w-12 h-12 rounded-xl flex items-center justify-center mx-auto">
+                            <i class="fas fa-water text-2xl text-blue-600"></i>
+                        </div>
+                        <p class="text-xs font-medium mt-2 text-gray-700">PDAM</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center card-hover" onclick="navigateTo('pulsa')">
+                        <div class="bg-orange-100 w-12 h-12 rounded-xl flex items-center justify-center mx-auto">
+                            <i class="fas fa-wifi text-2xl text-orange-600"></i>
+                        </div>
+                        <p class="text-xs font-medium mt-2 text-gray-700">Pulsa</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center card-hover" onclick="navigateTo('spp')">
+                        <div class="bg-purple-100 w-12 h-12 rounded-xl flex items-center justify-center mx-auto">
+                            <i class="fas fa-user-graduate text-2xl text-purple-600"></i>
+                        </div>
+                        <p class="text-xs font-medium mt-2 text-gray-700">SPP</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center card-hover" onclick="navigateTo('tagihan')">
+                        <div class="bg-green-100 w-12 h-12 rounded-xl flex items-center justify-center mx-auto">
+                            <i class="fas fa-tv text-2xl text-green-600"></i>
+                        </div>
+                        <p class="text-xs font-medium mt-2 text-gray-700">Internet</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center card-hover" onclick="navigateTo('riwayat')">
+                        <div class="bg-gray-100 w-12 h-12 rounded-xl flex items-center justify-center mx-auto">
+                            <i class="fas fa-list text-2xl text-gray-600"></i>
+                        </div>
+                        <p class="text-xs font-medium mt-2 text-gray-700">Riwayat</p>
+                    </div>
+                </div>
+                
+                <!-- Promo Banner -->
+                <div class="mt-5 bg-gradient-to-r from-teal-600 to-cyan-600 p-4 rounded-2xl text-white shadow-lg">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-white/20 p-2 rounded-xl">
+                            <i class="fas fa-tags text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-sm">Promo Spesial!</p>
+                            <p class="text-xs opacity-90">Bayar tagihan > Rp100.000 dapat cashback 5%</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Statistik Cepat -->
+                <div class="mt-5 grid grid-cols-2 gap-3">
+                    <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                        <p class="text-xs text-gray-500">Total Transaksi</p>
+                        <p class="text-lg font-bold text-teal-600" id="totalTransaksi">0</p>
+                    </div>
+                    <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                        <p class="text-xs text-gray-500">Saldo Tersisa</p>
+                        <p class="text-lg font-bold text-teal-600" id="saldoStat">Rp 1.250.000</p>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- ====== SECTION: TAGIHAN ====== -->
+            <section id="section-tagihan" class="tab-content hidden">
+                <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                    <i class="fas fa-file-invoice text-teal-600"></i>
+                    Bayar Tagihan
+                </h2>
+                
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                    <!-- Kategori -->
+                    <label class="block text-sm font-medium text-gray-700">Pilih Kategori</label>
+                    <select id="kategoriTagihan" class="w-full p-3 border border-gray-200 rounded-xl mt-1.5 bg-gray-50 text-sm focus:ring-2 focus:ring-teal-400 transition">
+                        <option value="pln">⚡ Listrik (PLN)</option>
+                        <option value="pdam">💧 PDAM</option>
+                        <option value="internet">🌐 Internet</option>
+                        <option value="seminar">🎓 Seminar / Event</option>
+                    </select>
+                    
+                    <!-- Nomor Pelanggan -->
+                    <label class="block text-sm font-medium text-gray-700 mt-4">Nomor Pelanggan / Referensi</label>
+                    <input id="inputNomorTagihan" type="text" placeholder="Contoh: 123456789012" class="w-full p-3 border border-gray-200 rounded-xl mt-1.5 bg-gray-50 text-sm focus:ring-2 focus:ring-teal-400 transition">
+                    
+                    <!-- Tombol Cek -->
+                    <button id="btnCekTagihan" class="mt-4 w-full bg-teal-600 text-white py-3 rounded-xl font-semibold hover:bg-teal-700 transition active:scale-95 flex items-center justify-center gap-2">
+                        <i class="fas fa-search"></i>
+                        Cek Tagihan
+                    </button>
+                    
+                    <!-- Hasil -->
+                    <div id="hasilTagihan" class="mt-4"></div>
+                </div>
+            </section>
+            
+            <!-- ====== SECTION: SPP ====== -->
+            <section id="section-spp" class="tab-content hidden">
+                <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                    <i class="fas fa-graduation-cap text-purple-600"></i>
+                    Cicilan SPP
+                </h2>
+                
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                    <label class="block text-sm font-medium text-gray-700">NIM (12 digit)</label>
+                    <input id="inputNim" type="text" placeholder="Contoh: 202310001234" class="w-full p-3 border border-gray-200 rounded-xl mt-1.5 bg-gray-50 text-sm focus:ring-2 focus:ring-purple-400 transition">
+                    
+                    <button id="btnCekSpp" class="mt-4 w-full bg-purple-600 text-white py-3 rounded-xl font-semibold hover:bg-purple-700 transition active:scale-95 flex items-center justify-center gap-2">
+                        <i class="fas fa-search"></i>
+                        Lihat Tagihan Semester
+                    </button>
+                    
+                    <div id="hasilSpp" class="mt-4"></div>
+                </div>
+            </section>
+            
+            <!-- ====== SECTION: PULSA ====== -->
+            <section id="section-pulsa" class="tab-content hidden">
+                <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                    <i class="fas fa-sim-card text-orange-500"></i>
+                    Isi Pulsa & Paket
+                </h2>
+                
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                    <!-- Provider -->
+                    <label class="block text-sm font-medium text-gray-700">Pilih Provider</label>
+                    <div class="grid grid-cols-3 gap-2 mt-2" id="providerGrid">
+                        <button data-provider="Telkomsel" class="provider-btn border-2 border-gray-200 p-2.5 rounded-xl text-xs font-medium bg-gray-50 hover:bg-teal-50 transition active:scale-95 ring-2 ring-teal-500 bg-teal-50">Telkomsel</button>
+                        <button data-provider="XL" class="provider-btn border-2 border-gray-200 p-2.5 rounded-xl text-xs font-medium bg-gray-50 hover:bg-teal-50 transition active:scale-95">XL</button>
+                        <button data-provider="Indosat" class="provider-btn border-2 border-gray-200 p-2.5 rounded-xl text-xs font-medium bg-gray-50 hover:bg-teal-50 transition active:scale-95">Indosat</button>
+                        <button data-provider="Tri" class="provider-btn border-2 border-gray-200 p-2.5 rounded-xl text-xs font-medium bg-gray-50 hover:bg-teal-50 transition active:scale-95">Tri</button>
+                        <button data-provider="Smartfren" class="provider-btn border-2 border-gray-200 p-2.5 rounded-xl text-xs font-medium bg-gray-50 hover:bg-teal-50 transition active:scale-95">Smartfren</button>
+                        <button data-provider="Axis" class="provider-btn border-2 border-gray-200 p-2.5 rounded-xl text-xs font-medium bg-gray-50 hover:bg-teal-50 transition active:scale-95">Axis</button>
+                    </div>
+                    <input type="hidden" id="selectedProvider" value="Telkomsel">
+                    
+                    <!-- Nomor HP -->
+                    <label class="block text-sm font-medium text-gray-700 mt-4">Nomor HP (08...)</label>
+                    <input id="inputHp" type="tel" placeholder="Contoh: 08123456789" class="w-full p-3 border border-gray-200 rounded-xl mt-1.5 bg-gray-50 text-sm focus:ring-2 focus:ring-orange-400 transition">
+                    
+                    <!-- Nominal -->
+                    <label class="block text-sm font-medium text-gray-700 mt-4">Nominal Pulsa</label>
+                    <div class="grid grid-cols-3 gap-2 mt-2">
+                        <button data-nominal="10000" class="nominal-btn border-2 border-gray-200 p-2.5 rounded-xl text-xs font-medium bg-gray-50 hover:bg-orange-50 transition active:scale-95 ring-2 ring-orange-400 bg-orange-50">Rp10.000</button>
+                        <button data-nominal="25000" class="nominal-btn border-2 border-gray-200 p-2.5 rounded-xl text-xs font-medium bg-gray-50 hover:bg-orange-50 transition active:scale-95">Rp25.000</button>
+                        <button data-nominal="50000" class="nominal-btn border-2 border-gray-200 p-2.5 rounded-xl text-xs font-medium bg-gray-50 hover:bg-orange-50 transition active:scale-95">Rp50.000</button>
+                        <button data-nominal="100000" class="nominal-btn border-2 border-gray-200 p-2.5 rounded-xl text-xs font-medium bg-gray-50 hover:bg-orange-50 transition active:scale-95">Rp100.000</button>
+                        <button data-nominal="200000" class="nominal-btn border-2 border-gray-200 p-2.5 rounded-xl text-xs font-medium bg-gray-50 hover:bg-orange-50 transition active:scale-95">Rp200.000</button>
+                        <input id="customNominal" type="number" placeholder="Custom" class="border-2 border-gray-200 p-2.5 rounded-xl text-xs bg-gray-50 w-full focus:ring-2 focus:ring-orange-400 transition">
+                    </div>
+                    
+                    <!-- Tombol Bayar -->
+                    <button id="btnBayarPulsa" class="mt-4 w-full bg-orange-500 text-white py-3 rounded-xl font-semibold hover:bg-orange-600 transition active:scale-95 flex items-center justify-center gap-2">
+                        <i class="fas fa-credit-card"></i>
+                        Bayar Pulsa
+                    </button>
+                    
+                    <div id="hasilPulsa" class="mt-4"></div>
+                </div>
+            </section>
+            
+            <!-- ====== SECTION: RIWAYAT ====== -->
+            <section id="section-riwayat" class="tab-content hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold flex items-center gap-2">
+                        <i class="fas fa-clock-rotate-left text-teal-600"></i>
+                        Riwayat
+                    </h2>
+                    <button id="btnHapusRiwayat" class="text-sm text-red-600 bg-red-50 px-4 py-2 rounded-full hover:bg-red-100 transition active:scale-95 flex items-center gap-1.5">
+                        <i class="fas fa-trash-can"></i>
+                        Hapus
+                    </button>
+                </div>
+                
+                <div id="riwayatContainer" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-3 min-h-[200px]">
+                    <p class="text-center text-gray-400 py-8 text-sm">Belum ada transaksi</p>
+                </div>
+            </section>
+            
+        </main>
+    </div>
+    
+    <!-- ====== MODAL KONFIRMASI / BUKTI ====== -->
+<div id="modalBayar" class="fixed inset-0 flex items-center justify-center modal-overlay hidden z-50 p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl relative">
+        <button id="modalClose" class="absolute top-3 right-4 text-gray-400 hover:text-gray-600 text-2xl z-10 no-print">
+            <i class="fas fa-times"></i>
+        </button>
+        <div id="modalBody" class="p-6"></div>
+    </div>
+</div>
+    
+    <!-- ====== JAVASCRIPT ====== -->
+    <script src="script.js"></script>
+</body>
+</html>
