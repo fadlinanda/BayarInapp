@@ -77,10 +77,15 @@
 
 ## 📂 Struktur File
 bayarin-app/
+
 ├── index.html # File utama HTML (semua layout)
+
 ├── script.js # Semua JavaScript logic (ES6+)
+
 ├── README.md # Dokumentasi project (ini)
+
 └── assets/ # (Opsional) Gambar/logo
+
 └── logo.png
 
 ## 🚀 Cara Menjalankan
@@ -99,36 +104,57 @@ bayarin-app/
 
 DATA DUMMY LENGKAP UNTUK TESTING
 1. Tagihan Listrik (PLN):
+
 123456789012
+
 987654321098
+
 456789123456
+
 111222333444
+
 555666777888
 
 2. Tagihan PDAM:
+
 112233445566
+
 223344556677
+
 334455667788
 
 3. Tagihan Internet:
+
 998877665544
+
 887766554433
+
 776655443322
 
 4. Tagihan Seminar:
+
 SEM2026A01
+
 SEM2026B02
 
 5. NIM SPP:
+
 202310001234
+
 202310002345
+
 202310003456
 
 6. Nomor HP Pulsa:
+
 08123456789
+
 087812345678
+
 085612345678
+
 089512345678
+
 081312345678
 083812345678
 
